@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0C1416">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Papiers">
+<title>Papiers de montres</title>
+<style>
+:root{
+  --bg:#0C1416; --panel:#111C1F; --line:rgba(214,226,224,.10); --line2:rgba(214,226,224,.20);
+  --fg:#E4EAE7; --mut:#7E9295; --steel:#8FB2B8; --brass:#C2A063; --brass-d:rgba(194,160,99,.13); --warn:#C4675A;
+  --serif:"Palatino Linotype",Palatino,"Iowan Old Style","Book Antiqua",Georgia,serif;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;background:var(--bg);color:var(--fg);font-family:var(--sans);
+  min-height:100%;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;color:inherit;background:none;border:none;cursor:pointer;font-size:inherit;padding:0}
+input,select,textarea{font-family:inherit;font-size:16px;color:var(--fg);background:#0A1113;
+  border:1px solid var(--line2);border-radius:4px;padding:11px 12px;width:100%;outline:none;-webkit-appearance:none}
+input:focus,select:focus,textarea:focus{border-color:var(--steel);box-shadow:0 0 0 3px rgba(143,178,184,.15)}
+textarea{min-height:78px;resize:vertical}
+input::placeholder,textarea::placeholder{color:var(--mut);opacity:.5;font-style:italic}
+.mono{font-family:var(--mono);letter-spacing:.02em}
+.serif{font-family:var(--serif)}
+.lbl{font-size:11.5px;color:var(--mut);margin-bottom:5px;display:block}
+.wrap{max-width:720px;margin:0 auto;padding:0 18px}
+.pad{padding-bottom:120px}
+.grow{flex:1;min-width:0}
+.row{display:flex;align-items:center;gap:10px}
+.two{display:flex;gap:12px}
+.two>*{flex:1;min-width:0}
+.field{margin-bottom:14px}
+
+.top{position:sticky;top:0;z-index:20;background:rgba(12,20,22,.95);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);padding:calc(14px + env(safe-area-inset-top)) 0 12px}
+.top h1{font-family:var(--serif);font-size:20px;font-weight:400;margin:0}
+
+.ghost{border:1px solid var(--line2);border-radius:4px;padding:10px 14px;font-size:13.5px;
+  display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.ghost:active{background:rgba(143,178,184,.08)}
+.ghost.wide{width:100%;padding:12px}
+.ghost.danger{color:var(--warn);border-color:rgba(196,103,90,.4)}
+.solid{background:var(--brass);color:#161009;border-radius:4px;padding:13px 16px;font-size:15px;
+  font-weight:600;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px}
+
+.chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{white-space:nowrap;border:1px solid var(--line2);border-radius:2px;padding:7px 11px;font-size:13px;color:var(--mut)}
+.chip.on{border-color:var(--brass);color:var(--brass);background:var(--brass-d)}
+
+.head2{display:flex;align-items:baseline;gap:9px;padding:22px 0 8px;border-bottom:1px solid var(--line)}
+.head2 h2{font-family:var(--serif);font-size:16px;font-weight:400;margin:0}
+.head2 span{font-size:12px;color:var(--mut)}
+
+.entry{display:flex;align-items:center;gap:13px;padding:13px 0;border-bottom:1px solid var(--line);
+  width:100%;text-align:left}
+.entry:active{background:rgba(143,178,184,.05)}
+.thumb{width:46px;height:46px;flex:none;border-radius:3px;border:1px solid var(--line2);
+  object-fit:cover;background:#0A1113;display:flex;align-items:center;justify-content:center;
+  font-family:var(--serif);color:var(--steel);font-size:13px}
+.ename{font-size:15px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.emeta{font-size:12px;color:var(--mut);margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eref{font-size:12.5px;color:var(--steel);text-align:right;flex:none}
+
+.card{border:1px solid var(--line2);border-radius:5px;background:var(--panel);overflow:hidden}
+.cardhead{padding:16px 18px 14px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,rgba(194,160,99,.07),transparent)}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line)}
+.fld{background:var(--panel);padding:12px 14px;min-height:60px}
+.fld.full{grid-column:1/-1}
+.fldv{font-size:14.5px;line-height:1.35;word-break:break-word}
+
+.sheet{position:fixed;inset:0;z-index:60;background:var(--bg);overflow-y:auto;
+  animation:up .22s cubic-bezier(.32,.72,0,1)}
+@keyframes up{from{transform:translateY(14px);opacity:0}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+
+.nav{position:fixed;left:0;right:0;bottom:0;z-index:30;background:rgba(12,20,22,.96);
+  backdrop-filter:blur(10px);border-top:1px solid var(--line);display:flex;
+  padding:8px 6px calc(8px + env(safe-area-inset-bottom))}
+.navb{flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 0;
+  font-size:10.5px;color:var(--mut)}
+.navb.on{color:var(--brass)}
+.navb svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;
+  stroke-linecap:round;stroke-linejoin:round}
+
+.bar{height:5px;background:rgba(143,178,184,.14);border-radius:3px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--brass)}
+.note{font-size:12.5px;color:var(--mut);line-height:1.55}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:96px;z-index:90;
+  background:#1B2A2D;border:1px solid var(--line2);border-radius:4px;padding:10px 16px;
+  font-size:13.5px;max-width:88%;text-align:center}
+.modal{position:fixed;inset:0;z-index:80;background:rgba(6,11,12,.74);
+  display:flex;align-items:center;justify-content:center;padding:24px}
+.modalbox{background:var(--panel);border:1px solid var(--line2);border-radius:6px;
+  padding:20px;max-width:360px;width:100%}
+.solid.danger{background:var(--warn);color:#1B0C0A}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+<div id="sheets"></div>
+<div id="toast" class="toast hidden"></div>
+
+<script>
+/* =================================================================== */
+/*  Références                                                         */
+/* =================================================================== */
+
+var MARQUES = ["Patek Philippe","Rolex","Audemars Piguet","Vacheron Constantin","A. Lange & Söhne",
+"Richard Mille","F.P. Journe","Jaeger-LeCoultre","Breguet","Omega","IWC","Panerai","Tudor","Cartier",
+"Blancpain","Glashütte Original","Zenith","Grand Seiko","H. Moser & Cie","Chopard","Hublot","Bulgari"];
+
+var DOCS = ["Carte de garantie","Certificat d'origine","Livret de garantie","Facture d'origine",
+"Papiers de service","Extrait d'archive","Autre"];
+
+/* =================================================================== */
+/*  Stockage local                                                     */
+/* =================================================================== */
+
+var DBNAME="papiers-v1", dbp=null, useIDB=("indexedDB" in window);
+
+function db(){
+  if(dbp) return dbp;
+  dbp=new Promise(function(res,rej){
+    var r=indexedDB.open(DBNAME,1);
+    r.onupgradeneeded=function(){
+      var d=r.result;
+      if(!d.objectStoreNames.contains("kv")) d.createObjectStore("kv");
+      if(!d.objectStoreNames.contains("photos")) d.createObjectStore("photos");
+    };
+    r.onsuccess=function(){ res(r.result); };
+    r.onerror=function(){ rej(r.error); };
+  });
+  return dbp;
+}
+function idbPut(s,k,v){ return db().then(function(d){ return new Promise(function(res,rej){
+  var t=d.transaction(s,"readwrite"); t.objectStore(s).put(v,k);
+  t.oncomplete=function(){res(true)}; t.onerror=function(){rej(t.error)}; }); }); }
+function idbGet(s,k){ return db().then(function(d){ return new Promise(function(res,rej){
+  var t=d.transaction(s,"readonly"), q=t.objectStore(s).get(k);
+  q.onsuccess=function(){res(q.result)}; q.onerror=function(){rej(q.error)}; }); }); }
+function idbDel(s,k){ return db().then(function(d){ return new Promise(function(res){
+  var t=d.transaction(s,"readwrite"); t.objectStore(s).delete(k);
+  t.oncomplete=function(){res(true)}; t.onerror=function(){res(false)}; }); }); }
+
+function lsSet(k,v){ try{ localStorage.setItem("pap:"+k,JSON.stringify(v)); }
+  catch(e){ toast("Mémoire pleine. Exportez puis retirez quelques photos."); } }
+function lsGet(k){ try{ var v=localStorage.getItem("pap:"+k); return v?JSON.parse(v):null; }catch(e){ return null; } }
+
+function save(k,v){ if(useIDB) return idbPut("kv",k,v).catch(function(){ lsSet(k,v); }); lsSet(k,v); return Promise.resolve(); }
+function load(k){ if(useIDB) return idbGet("kv",k).then(function(v){ return v===undefined?lsGet(k):v; })
+  .catch(function(){ return lsGet(k); }); return Promise.resolve(lsGet(k)); }
+function savePhoto(id,d){ if(useIDB) return idbPut("photos",id,d).catch(function(){});
+  try{ localStorage.setItem("pph:"+id,d); }catch(e){} return Promise.resolve(); }
+function loadPhoto(id){ if(useIDB) return idbGet("photos",id).then(function(v){ return v||lsPh(id); })
+  .catch(function(){ return lsPh(id); }); return Promise.resolve(lsPh(id)); }
+function delPhoto(id){ try{ localStorage.removeItem("pph:"+id); }catch(e){}
+  if(useIDB) return idbDel("photos",id); return Promise.resolve(); }
+function lsPh(id){ try{ return localStorage.getItem("pph:"+id); }catch(e){ return null; } }
+
+/* =================================================================== */
+/*  État et utilitaires                                                */
+/* =================================================================== */
+
+var S={ items:[], cfg:{}, onglet:"registre", q:"", marque:"all", tri:"marque", verrou:false };
+
+/* Comparaison naturelle des références : 5711 avant 5712, 116500 avant 126500,
+   et les fiches sans référence en fin de liste. */
+function cmpRef(a,b){
+  var ra=(a.ref||"").trim(), rb=(b.ref||"").trim();
+  if(ra && !rb) return -1;
+  if(!ra && rb) return 1;
+  if(ra && rb){
+    var c=ra.localeCompare(rb,"fr",{numeric:true,sensitivity:"base"});
+    if(c) return c;
+  }
+  return (a.modele||"").localeCompare(b.modele||"","fr",{sensitivity:"base"});
+}
+
+function uid(){ return Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
+function hash(s){ var h=5381; for(var i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return String(h); }
+function itemDe(id){ for(var i=0;i<S.items.length;i++) if(S.items[i].id===id) return S.items[i]; return null; }
+function titre(it){ return [it.marque,it.modele].filter(Boolean).join(" ") || it.ref || "Sans titre"; }
+function lieuTxt(it){ return (it.lieu||"").trim(); }
+
+var toastT=null;
+function toast(m){
+  var t=document.getElementById("toast");
+  t.textContent=m; t.classList.remove("hidden");
+  clearTimeout(toastT); toastT=setTimeout(function(){ t.classList.add("hidden"); },2600);
+}
+
+function listeMarques(){
+  var c={}; S.items.forEach(function(i){ var m=(i.marque||"").trim(); if(m) c[m]=(c[m]||0)+1; });
+  return Object.keys(c).sort(function(a,b){ return c[b]-c[a] || a.localeCompare(b); })
+    .map(function(m){ return {m:m,n:c[m]}; });
+}
+function listeLieux(){
+  var v={}; S.items.forEach(function(i){ var l=lieuTxt(i); if(l) v[l]=1; });
+  return Object.keys(v).sort(function(a,b){ return a.localeCompare(b); });
+}
+
+function redimensionner(file,maxSide,q){
+  return new Promise(function(res,rej){
+    var fr=new FileReader();
+    fr.onerror=function(){ rej(new Error("Image illisible.")); };
+    fr.onload=function(){
+      var img=new Image();
+      img.onerror=function(){ rej(new Error("Image illisible.")); };
+      img.onload=function(){
+        var s=Math.min(1,maxSide/Math.max(img.width,img.height));
+        var w=Math.round(img.width*s), h=Math.round(img.height*s);
+        var c=document.createElement("canvas"); c.width=w; c.height=h;
+        var x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,w,h); x.drawImage(img,0,0,w,h);
+        res(c.toDataURL("image/jpeg",q));
+      };
+      img.src=fr.result;
+    };
+    fr.readAsDataURL(file);
+  });
+}
+
+var ICONS={
+  registre:'<path d="M4 5h16v14H4z"/><path d="M4 10h16M9 5v14"/>',
+  ajout:'<path d="M12 5v14M5 12h14"/>',
+  resume:'<path d="M4 20V9M10 20V4M16 20v-7M22 20H2"/>'
+};
+function ic(n){ return '<svg viewBox="0 0 24 24">'+ICONS[n]+'</svg>'; }
+
+/* =================================================================== */
+/*  Écran principal                                                    */
+/* =================================================================== */
+
+function render(){
+  if(S.verrou) return renderVerrou();
+  document.getElementById("app").innerHTML = entete() + (S.onglet==="resume"?vueResume():vueRegistre()) + barre();
+  brancher();
+}
+
+function entete(){
+  var h='<div class="top"><div class="wrap"><div class="row">'
+    + '<h1 class="grow">'+(S.onglet==="resume"?"Résumé":"Papiers de montres")+'</h1>'
+    + (S.cfg.code?'<button id="btnLock" class="ghost" style="padding:8px 11px">Verrouiller</button>':'')
+    + '<button id="btnCfg" class="ghost" style="padding:8px 11px">Réglages</button></div>';
+  if(S.onglet==="registre"){
+    h += '<div style="margin-top:12px"><input id="q" type="search" placeholder="Rechercher une marque, une référence…" value="'+esc(S.q)+'"></div>'
+      + '<div class="chips" style="margin-top:10px">'
+      + '<button class="chip'+(S.marque==="all"?" on":"")+'" data-m="all">Tout '+S.items.length+'</button>'
+      + listeMarques().map(function(x){
+          return '<button class="chip'+(S.marque===x.m?" on":"")+'" data-m="'+esc(x.m)+'">'+esc(x.m)+' '+x.n+'</button>';
+        }).join("")
+      + '</div>'
+      + '<div class="row" style="margin-top:10px;gap:8px">'
+      + '<span class="lbl" style="margin:0">Classer</span>'
+      + '<button class="chip'+(S.tri==="marque"?" on":"")+'" data-tri="marque">par marque</button>'
+      + '<button class="chip'+(S.tri==="lieu"?" on":"")+'" data-tri="lieu">par lieu</button>'
+      + '</div>';
+  }
+  return h+'</div></div>';
+}
+
+function vueRegistre(){
+  if(S.items.length===0){
+    return '<div class="wrap pad"><div class="card" style="padding:24px;text-align:center;margin-top:26px">'
+      + '<div class="serif" style="font-size:20px;margin-bottom:6px">Aucun document</div>'
+      + '<p class="note" style="margin:0 0 18px">Ajoutez une carte de garantie ou un certificat : marque, modèle, référence, et l\'endroit où le document se trouve.</p>'
+      + '<button class="solid" id="premier">Créer la première fiche</button></div></div>';
+  }
+  var q=S.q.trim().toLowerCase();
+  var liste=S.items.filter(function(i){
+    if(S.marque!=="all" && (i.marque||"").trim()!==S.marque) return false;
+    if(!q) return true;
+    return [i.marque,i.modele,i.ref,i.serie,i.doc,i.annee,i.lieu,i.notes]
+      .filter(Boolean).join(" ").toLowerCase().indexOf(q)>-1;
+  });
+  if(liste.length===0)
+    return '<div class="wrap pad"><p class="note" style="padding-top:30px;text-align:center">Aucun résultat. Essayez une recherche plus courte.</p></div>';
+
+  var mode = S.tri==="lieu" ? "lieu" : "marque";
+  var vide = mode==="lieu" ? "Sans lieu indiqué" : "Sans marque";
+
+  var g={};
+  liste.forEach(function(i){
+    var k = (mode==="lieu" ? lieuTxt(i) : (i.marque||"").trim()) || vide;
+    (g[k]=g[k]||[]).push(i);
+  });
+  var cles=Object.keys(g).sort(function(a,b){
+    if(a===vide) return 1; if(b===vide) return -1;
+    return a.localeCompare(b,"fr",{sensitivity:"base"});
+  });
+
+  var h='<div class="wrap pad">';
+  cles.forEach(function(k){
+    var arr=g[k].sort(mode==="marque" ? cmpRef : function(a,b){ return titre(a).localeCompare(titre(b),"fr"); });
+    h += '<div class="head2"><h2 class="grow">'+esc(k)+'</h2><span class="mono">'+arr.length+'</span></div>';
+    arr.forEach(function(i){
+      var nom  = mode==="marque" ? (i.modele || i.ref || i.marque) : titre(i);
+      var meta = mode==="marque" ? [i.doc, i.annee, lieuTxt(i)] : [i.doc||"Document", i.annee];
+      h += '<button class="entry" data-id="'+i.id+'">'
+        + (i.vignette?'<img class="thumb" src="'+i.vignette+'" alt="">':'<span class="thumb">'+esc((i.marque||"?").slice(0,2))+'</span>')
+        + '<span class="grow"><span class="ename" style="display:block">'+esc(nom)+'</span>'
+        + '<span class="emeta" style="display:block">'+esc(meta.filter(Boolean).join(" · "))+'</span></span>'
+        + (i.ref?'<span class="eref mono">'+esc(i.ref)+'</span>':'')
+        + '</button>';
+    });
+  });
+  return h+'</div>';
+}
+
+function vueResume(){
+  var marques=listeMarques(), lieux=listeLieux();
+  var maxN=1; marques.forEach(function(x){ if(x.n>maxN) maxN=x.n; });
+  var sansLieu=S.items.filter(function(i){ return !lieuTxt(i); }).length;
+  var sansRef=S.items.filter(function(i){ return !(i.ref||"").trim(); }).length;
+  var avecPhoto=S.items.filter(function(i){ return !!i.vignette; }).length;
+
+  var h='<div class="wrap pad" style="padding-top:20px">'
+    + '<div class="card" style="padding:18px 20px"><span class="lbl">Documents enregistrés</span>'
+    + '<div class="serif" style="font-size:30px;line-height:1.1">'+S.items.length+'</div>'
+    + '<div class="note" style="margin-top:4px">'+marques.length+(marques.length>1?" marques":" marque")
+    + ' · '+lieux.length+(lieux.length>1?" lieux":" lieu")+' · '+avecPhoto+' avec photo</div></div>'
+    + '<div class="head2"><h2 class="grow">Par marque</h2></div>';
+  marques.forEach(function(x){
+    h += '<div style="padding:12px 0;border-bottom:1px solid var(--line)"><div class="row">'
+      + '<span class="grow" style="font-size:14.5px">'+esc(x.m)+'</span>'
+      + '<span class="mono" style="font-size:13px">'+x.n+'</span></div>'
+      + '<div class="bar"><i style="width:'+Math.round(x.n/maxN*100)+'%"></i></div></div>';
+  });
+  h += '<div class="head2"><h2 class="grow">Par lieu</h2></div>';
+  lieux.forEach(function(l){
+    var n=S.items.filter(function(i){ return lieuTxt(i)===l; }).length;
+    h += '<div class="row" style="padding:12px 0;border-bottom:1px solid var(--line)">'
+      + '<span class="grow" style="font-size:14.5px">'+esc(l)+'</span>'
+      + '<span class="mono" style="font-size:13px;color:var(--mut)">'+n+'</span></div>';
+  });
+  if(sansLieu||sansRef){
+    h += '<div class="head2"><h2 class="grow">À compléter</h2></div>';
+    if(sansLieu) h += '<p class="note" style="margin-top:12px">'+sansLieu+' fiche(s) sans lieu indiqué.</p>';
+    if(sansRef)  h += '<p class="note" style="margin-top:6px">'+sansRef+' fiche(s) sans référence.</p>';
+  }
+  return h+'</div>';
+}
+
+function barre(){
+  return '<div class="nav">'
+    + '<button class="navb'+(S.onglet==="registre"?" on":"")+'" data-tab="registre">'+ic("registre")+'Registre</button>'
+    + '<button class="navb" id="navAdd">'+ic("ajout")+'Ajouter</button>'
+    + '<button class="navb'+(S.onglet==="resume"?" on":"")+'" data-tab="resume">'+ic("resume")+'Résumé</button>'
+    + '</div>';
+}
+
+function brancher(){
+  document.querySelectorAll("[data-tab]").forEach(function(b){
+    b.onclick=function(){ S.onglet=b.getAttribute("data-tab"); render(); };
+  });
+  document.querySelectorAll("[data-m]").forEach(function(b){
+    b.onclick=function(){ S.marque=b.getAttribute("data-m"); render(); };
+  });
+  document.querySelectorAll("[data-tri]").forEach(function(b){
+    b.onclick=function(){
+      S.tri=b.getAttribute("data-tri");
+      S.cfg.tri=S.tri; save("cfg",S.cfg);
+      render();
+    };
+  });
+  document.querySelectorAll("[data-id]").forEach(function(b){
+    b.onclick=function(){ detail(itemDe(b.getAttribute("data-id"))); };
+  });
+  var q=document.getElementById("q");
+  if(q) q.oninput=function(){
+    S.q=q.value; var p=q.selectionStart; render();
+    var n=document.getElementById("q"); if(n){ n.focus(); try{ n.setSelectionRange(p,p); }catch(e){} }
+  };
+  var a=document.getElementById("navAdd"); if(a) a.onclick=function(){ formulaire(vierge()); };
+  var p1=document.getElementById("premier"); if(p1) p1.onclick=function(){ formulaire(vierge()); };
+  var bl=document.getElementById("btnLock"); if(bl) bl.onclick=function(){ S.verrou=true; render(); };
+  var bc=document.getElementById("btnCfg"); if(bc) bc.onclick=reglages;
+}
+
+/* =================================================================== */
+/*  Feuilles                                                           */
+/* =================================================================== */
+
+function ouvrir(html){
+  var d=document.createElement("div");
+  d.className="sheet"; d.innerHTML=html;
+  document.getElementById("sheets").appendChild(d);
+  d.querySelectorAll("[data-close]").forEach(function(b){ b.onclick=function(){ d.remove(); }; });
+  return d;
+}
+function tete(t,droite){
+  return '<div class="top"><div class="wrap row">'
+    + '<button data-close style="padding:6px 10px 6px 0;font-size:15px">‹ Retour</button>'
+    + '<h1 class="grow" style="font-size:18px">'+esc(t)+'</h1>'+(droite||"")+'</div></div>';
+}
+function champ(l,html){ return '<div class="field"><label class="lbl">'+esc(l)+'</label>'+html+'</div>'; }
+function val(d,id){ var e=d.querySelector(id); return e?e.value.trim():""; }
+
+/* Fenêtre de confirmation interne : les boîtes système du navigateur
+   sont bloquées dans certains contextes, celle-ci fonctionne partout. */
+function dialogue(o){
+  var d=document.createElement("div");
+  d.className="modal";
+  d.innerHTML='<div class="modalbox">'
+    + '<div class="serif" style="font-size:18px;margin-bottom:8px">'+esc(o.titre||"")+'</div>'
+    + (o.texte?'<p class="note" style="margin:0 0 16px">'+esc(o.texte)+'</p>':'')
+    + (o.champ?'<input id="dlgv" class="mono" '+(o.secret?'type="password" inputmode="numeric" style="text-align:center;letter-spacing:.25em"':'')+'>':'')
+    + '<div class="row" style="gap:10px;margin-top:14px">'
+    + '<button class="ghost" id="dlgno" style="flex:1;padding:12px">Annuler</button>'
+    + '<button class="solid'+(o.danger?" danger":"")+'" id="dlgok" style="flex:1;padding:12px">'+esc(o.ok||"Confirmer")+'</button>'
+    + '</div></div>';
+  document.getElementById("sheets").appendChild(d);
+  var inp=d.querySelector("#dlgv");
+  if(inp) setTimeout(function(){ try{ inp.focus(); }catch(e){} },60);
+  function fin(){ d.remove(); }
+  d.querySelector("#dlgno").onclick=fin;
+  d.querySelector("#dlgok").onclick=function(){
+    var v=inp?inp.value:true; fin(); if(o.onOk) o.onOk(v);
+  };
+  d.onclick=function(e){ if(e.target===d) fin(); };
+  if(inp) inp.onkeydown=function(e){ if(e.key==="Enter") d.querySelector("#dlgok").click(); };
+}
+
+function vierge(){
+  return {id:uid(),marque:"",modele:"",ref:"",serie:"",doc:"",annee:"",lieu:"",notes:"",
+    vignette:"",cree:new Date().toISOString()};
+}
+
+/* ---- Formulaire ---- */
+
+function formulaire(it){
+  var nouveau=!itemDe(it.id);
+  var lieux=listeLieux();
+
+  var h = tete(nouveau?"Nouvelle fiche":"Modifier la fiche")
+    + '<div class="wrap pad" style="padding-top:18px">'
+
+    + champ("Marque",
+        '<input id="f_marque" list="marques" value="'+esc(it.marque)+'" placeholder="ex. Patek Philippe">'
+        + '<datalist id="marques">'+MARQUES.map(function(m){ return '<option value="'+esc(m)+'">'; }).join("")+'</datalist>')
+
+    + champ("Modèle",'<input id="f_modele" value="'+esc(it.modele)+'" placeholder="ex. Nautilus">')
+
+    + '<div class="two">'
+    + champ("Référence",'<input id="f_ref" class="mono" value="'+esc(it.ref)+'" placeholder="ex. 5711/1A-010">')
+    + champ("Année",'<input id="f_annee" class="mono" inputmode="numeric" maxlength="4" value="'+esc(it.annee)+'">')
+    + '</div>'
+
+    + champ("Type de document",
+        '<select id="f_doc"><option value="">À choisir</option>'
+        + DOCS.map(function(x){ return '<option'+(it.doc===x?" selected":"")+'>'+x+'</option>'; }).join("")+'</select>')
+
+    + champ("Numéro de série",'<input id="f_serie" class="mono" value="'+esc(it.serie)+'">')
+
+    + champ("Où se trouve le document",
+        '<input id="f_lieu" list="lieux" value="'+esc(it.lieu)+'" placeholder="ex. Genève, coffre B-214">'
+        + '<datalist id="lieux">'+lieux.map(function(l){ return '<option value="'+esc(l)+'">'; }).join("")+'</datalist>'
+        + '<p class="note" style="margin-top:6px">Écrivez-le comme vous voulez. Les fiches sont regroupées sur ce texte exact, alors reprenez la même formulation d\'une fiche à l\'autre — la liste vous propose celles déjà utilisées.</p>')
+
+    + '<div class="field"><label class="lbl">Photo de la montre</label>'
+    + '<div class="row"><div class="thumb" id="apercu" style="width:74px;height:74px">'
+    + (it.vignette?'<img src="'+it.vignette+'" style="width:100%;height:100%;object-fit:cover;border-radius:3px">':'—')
+    + '</div><div class="grow">'
+    + '<button type="button" class="ghost" id="prendre">Prendre une photo</button> '
+    + '<button type="button" class="ghost" id="choisir">Choisir une image</button>'
+    + (it.vignette?' <button type="button" class="ghost danger" id="retirerPh">Retirer</button>':'')
+    + '</div></div>'
+    + '<p class="note" style="margin-top:6px">Pour voir d\'un coup d\'œil à quoi correspond la référence.</p>'
+    + '<input id="cam" type="file" accept="image/*" capture="environment" style="display:none">'
+    + '<input id="gal" type="file" accept="image/*" style="display:none"></div>'
+
+    + champ("Notes",'<textarea id="f_notes" placeholder="ex. concessionnaire, état du document, tampon, boîte présente">'+esc(it.notes)+'</textarea>')
+
+    + '<div class="row" style="gap:10px;margin-top:20px">'
+    + '<button class="ghost" data-close style="padding:12px 18px">Annuler</button>'
+    + '<div class="grow"><button class="solid" id="enreg">Enregistrer</button></div></div>'
+    + '<p class="note hidden" id="erreur" style="margin-top:10px;color:var(--warn)"></p>'
+    + '</div>';
+
+  var d=ouvrir(h);
+  var photo=null, vignette=it.vignette, retire=false;
+
+  /* Les valeurs sont mémorisées au fur et à mesure de la saisie :
+     l'enregistrement ne dépend plus d'une relecture du formulaire. */
+  var CH=[["#f_marque","marque"],["#f_modele","modele"],["#f_ref","ref"],["#f_serie","serie"],
+          ["#f_doc","doc"],["#f_annee","annee"],["#f_lieu","lieu"],["#f_notes","notes"]];
+  var br={};
+  CH.forEach(function(p){
+    br[p[1]] = it[p[1]] || "";
+    var e=d.querySelector(p[0]);
+    if(!e) return;
+    var maj=function(){ br[p[1]]=e.value; };
+    e.addEventListener("input",maj);
+    e.addEventListener("change",maj);
+    e.addEventListener("blur",maj);
+  });
+
+  function erreur(msg){
+    var z=d.querySelector("#erreur");
+    if(z){ z.textContent=msg; z.classList.remove("hidden"); }
+    toast(msg);
+  }
+
+  var cam=d.querySelector("#cam"), gal=d.querySelector("#gal");
+  d.querySelector("#prendre").onclick=function(){ cam.click(); };
+  d.querySelector("#choisir").onclick=function(){ gal.click(); };
+  var rp=d.querySelector("#retirerPh");
+  if(rp) rp.onclick=function(){
+    photo=null; vignette=""; retire=true;
+    d.querySelector("#apercu").textContent="—"; toast("Photo retirée à l'enregistrement.");
+  };
+  function recu(e){
+    var f=e.target.files && e.target.files[0]; e.target.value="";
+    if(!f) return;
+    Promise.all([redimensionner(f,1100,0.72),redimensionner(f,140,0.5)]).then(function(r){
+      photo=r[0]; vignette=r[1]; retire=false;
+      d.querySelector("#apercu").innerHTML='<img src="'+r[1]+'" style="width:100%;height:100%;object-fit:cover;border-radius:3px">';
+    }).catch(function(err){ toast(err.message); });
+  }
+  cam.onchange=recu; gal.onchange=recu;
+
+  d.querySelector("#enreg").onclick=function(){
+    try{
+      CH.forEach(function(p){
+        var e=d.querySelector(p[0]);
+        if(e && e.value!=null && String(e.value).trim()!=="") br[p[1]]=e.value;
+      });
+      var v={ id:it.id, cree:it.cree||new Date().toISOString(), vignette:vignette||"" };
+      CH.forEach(function(p){ v[p[1]]=String(br[p[1]]||"").trim(); });
+
+      if(!v.marque && !v.modele && !v.ref){
+        erreur("Renseignez au moins la marque, le modèle ou la référence.");
+        return;
+      }
+      var idx=-1; S.items.forEach(function(x,i){ if(x.id===v.id) idx=i; });
+      if(idx>-1) S.items[idx]=v; else S.items.unshift(v);
+
+      Promise.resolve(save("items",S.items)).then(function(){
+        if(photo) return savePhoto(v.id,photo);
+        if(retire) return delPhoto(v.id);
+      }).then(function(){
+        d.remove(); render(); toast("Fiche enregistrée.");
+      }).catch(function(e){
+        erreur("Enregistrement impossible : "+((e&&e.message)||e));
+      });
+    }catch(e){
+      erreur("Erreur : "+((e&&e.message)||e));
+    }
+  };
+}
+
+/* ---- Détail ---- */
+
+function detail(it){
+  if(!it) return;
+  var h = tete("Document",'<button class="ghost" id="modif" style="padding:8px 12px">Modifier</button>')
+    + '<div class="wrap pad" style="padding-top:18px"><div id="grande"></div>'
+    + '<div class="card"><div class="cardhead">'
+    + '<div class="serif" style="font-size:22px;line-height:1.25">'+esc(titre(it))+'</div>'
+    + (it.ref?'<div class="mono" style="font-size:13px;color:var(--steel);margin-top:5px">'+esc(it.ref)+'</div>':'')
+    + '</div><div class="fields">';
+
+  function f(l,v,mono){
+    return '<div class="fld"><span class="lbl">'+esc(l)+'</span><div class="fldv'+(mono?" mono":"")+'">'
+      + (v?esc(v):'<span style="color:var(--mut)">—</span>')+'</div></div>';
+  }
+  h += f("Type de document",it.doc);
+  h += f("Année",it.annee,true);
+  h += f("Numéro de série",it.serie,true);
+  h += f("Lieu",lieuTxt(it)||"Non indiqué");
+  if(it.notes) h += '<div class="fld full"><span class="lbl">Notes</span><div class="fldv" style="white-space:pre-wrap">'+esc(it.notes)+'</div></div>';
+  h += '</div></div>'
+    + '<button class="ghost danger wide" id="suppr" style="margin-top:26px">Supprimer la fiche</button></div>';
+
+  var d=ouvrir(h);
+  loadPhoto(it.id).then(function(p){
+    if(p) d.querySelector("#grande").innerHTML =
+      '<img src="'+p+'" style="width:100%;border-radius:5px;border:1px solid var(--line2);margin-bottom:16px;display:block">'
+      + '<p class="note" style="margin:-8px 0 16px">Photo de la montre correspondant à cette référence.</p>';
+  });
+  d.querySelector("#modif").onclick=function(){ d.remove(); formulaire(it); };
+  d.querySelector("#suppr").onclick=function(){
+    dialogue({
+      titre:"Supprimer cette fiche ?",
+      texte:"L'action est définitive et la photo associée sera effacée elle aussi.",
+      ok:"Supprimer", danger:true,
+      onOk:function(){
+        S.items=S.items.filter(function(x){ return x.id!==it.id; });
+        Promise.resolve(save("items",S.items)).then(function(){ return delPhoto(it.id); })
+          .then(function(){ d.remove(); render(); toast("Fiche supprimée."); })
+          .catch(function(e){ toast("Suppression impossible : "+((e&&e.message)||e)); });
+      }
+    });
+  };
+}
+
+/* ---- Réglages ---- */
+
+function reglages(){
+  var h = tete("Réglages")
+    + '<div class="wrap pad" style="padding-top:18px">'
+    + '<div class="head2"><h2 class="grow">Verrouillage</h2></div>'
+    + '<p class="note" style="margin:12px 0">Un code masque le registre à l\'ouverture. Il décourage un regard par-dessus l\'épaule ; il ne chiffre rien.</p>'
+    + (S.cfg.code?'<button class="ghost danger" id="offCode">Retirer le code</button>'
+                 :'<button class="ghost" id="onCode">Définir un code</button>')
+    + '<div class="head2"><h2 class="grow">Sauvegarde</h2></div>'
+    + '<p class="note" style="margin:12px 0">Tout est stocké sur cet appareil uniquement. Si le téléphone est perdu, seule votre sauvegarde subsiste. Les photos ne sont pas incluses dans l\'export.</p>'
+    + '<div class="row" style="gap:10px;flex-wrap:wrap">'
+    + '<button class="ghost" id="expJ">Exporter en JSON</button>'
+    + '<button class="ghost" id="expC">Exporter en tableur</button></div>'
+    + '<div class="field" style="margin-top:20px"><label class="lbl">Réimporter une sauvegarde JSON</label>'
+    + '<textarea id="imp" placeholder=\'{"items": [...]}\'></textarea>'
+    + '<button class="ghost" id="okImp" style="margin-top:10px">Ajouter ces fiches</button></div>'
+    + '<div class="head2"><h2 class="grow">Où vivent les données</h2></div>'
+    + '<p class="note" style="margin:12px 0 0">Rien n\'est envoyé nulle part et l\'application fonctionne sans réseau. Effacer les données du navigateur, ou supprimer l\'app de l\'écran d\'accueil et vider son cache, efface aussi le registre.</p>'
+    + '<p class="note" style="margin:10px 0 0">Stockage utilisé : '+(useIDB?"IndexedDB":"mémoire du navigateur")+' · '+S.items.length+' fiche(s) en mémoire.</p></div>';
+
+  var d=ouvrir(h);
+  var on=d.querySelector("#onCode");
+  if(on) on.onclick=function(){
+    dialogue({
+      titre:"Définir un code", texte:"Quatre chiffres au minimum.",
+      champ:true, secret:true, ok:"Activer",
+      onOk:function(p){
+        p=String(p||"").trim();
+        if(p.length<4){ toast("Code trop court : quatre chiffres au minimum."); return; }
+        S.cfg.code=hash(p); save("cfg",S.cfg); d.remove(); render(); toast("Code activé.");
+      }
+    });
+  };
+  var off=d.querySelector("#offCode");
+  if(off) off.onclick=function(){ S.cfg.code=null; save("cfg",S.cfg); d.remove(); render(); toast("Code retiré."); };
+
+  d.querySelector("#expJ").onclick=function(){
+    telecharger(JSON.stringify({exporte:new Date().toISOString(),items:S.items},null,2),"papiers.json","application/json");
+  };
+  d.querySelector("#expC").onclick=function(){ telecharger(csv(),"papiers.csv","text/csv;charset=utf-8"); };
+  d.querySelector("#okImp").onclick=function(){
+    var t=d.querySelector("#imp").value.trim(); if(!t) return;
+    try{
+      var o=JSON.parse(t), n=0;
+      (o.items||[]).forEach(function(i){ if(!itemDe(i.id)){ S.items.unshift(Object.assign(vierge(),i)); n++; } });
+      save("items",S.items); d.querySelector("#imp").value=""; render(); toast(n+" fiche(s) ajoutée(s).");
+    }catch(e){ toast("Ce texte n'est pas un JSON valide."); }
+  };
+}
+
+function csv(){
+  var head=["Marque","Modèle","Référence","Numéro de série","Type de document","Année","Lieu","Notes"];
+  var lignes=S.items.map(function(i){
+    return [i.marque,i.modele,i.ref,i.serie,i.doc,i.annee,i.lieu,(i.notes||"").replace(/\n/g," ")];
+  });
+  return "\uFEFF"+[head].concat(lignes).map(function(r){
+    return r.map(function(c){ return '"'+String(c==null?"":c).replace(/"/g,'""')+'"'; }).join(";");
+  }).join("\n");
+}
+
+function telecharger(contenu,nom,type){
+  try{
+    var url=URL.createObjectURL(new Blob([contenu],{type:type}));
+    var a=document.createElement("a"); a.href=url; a.download=nom;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function(){ URL.revokeObjectURL(url); },2000);
+    toast(nom+" enregistré.");
+  }catch(e){ toast("Téléchargement bloqué ici. Copiez le texte manuellement."); }
+}
+
+/* ---- Verrouillage ---- */
+
+function renderVerrou(){
+  document.getElementById("app").innerHTML =
+    '<div class="wrap" style="max-width:320px;padding-top:110px;text-align:center">'
+    + '<div class="serif" style="font-size:21px;margin-bottom:20px">Registre verrouillé</div>'
+    + '<input id="pin" type="password" inputmode="numeric" class="mono" style="text-align:center;font-size:22px;letter-spacing:.3em">'
+    + '<button class="solid" id="okPin" style="margin-top:14px">Déverrouiller</button>'
+    + '<p class="note" id="msg" style="margin-top:12px"></p></div>';
+  var pin=document.getElementById("pin"); pin.focus();
+  function essai(){
+    if(hash(pin.value)===S.cfg.code){ S.verrou=false; render(); }
+    else { document.getElementById("msg").textContent="Code incorrect."; pin.value=""; }
+  }
+  document.getElementById("okPin").onclick=essai;
+  pin.onkeydown=function(e){ if(e.key==="Enter") essai(); };
+}
+
+/* =================================================================== */
+
+/* ---- Installation sur l'écran d'accueil et fonctionnement hors ligne ---- */
+
+(function(){
+  try{
+    var icone='<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">'
+      +'<rect width="512" height="512" fill="#0C1416"/>'
+      +'<text x="256" y="345" font-size="260" font-family="Georgia,serif" fill="#C2A063" text-anchor="middle">P</text></svg>';
+    var man={ name:"Papiers de montres", short_name:"Papiers", display:"standalone",
+      background_color:"#0C1416", theme_color:"#0C1416", start_url:".", scope:".",
+      icons:[{src:"data:image/svg+xml,"+encodeURIComponent(icone), sizes:"any",
+              type:"image/svg+xml", purpose:"any"}] };
+    var l=document.createElement("link");
+    l.rel="manifest";
+    l.href=URL.createObjectURL(new Blob([JSON.stringify(man)],{type:"application/manifest+json"}));
+    document.head.appendChild(l);
+  }catch(e){}
+  try{
+    if("serviceWorker" in navigator && location.protocol.indexOf("http")===0)
+      navigator.serviceWorker.register("sw.js").catch(function(){});
+  }catch(e){}
+})();
+
+Promise.all([load("items"),load("cfg")]).then(function(r){
+  S.items=r[0]||[]; S.cfg=r[1]||{};
+  if(S.cfg.tri) S.tri=S.cfg.tri;
+  if(S.cfg.code) S.verrou=true;
+  render();
+}).catch(function(){
+  S.items=[]; S.cfg={}; render();
+  toast("Le stockage n'a pas pu être ouvert. Vos saisies ne seront pas conservées.");
+});
+</script>
+</body>
+</html>
