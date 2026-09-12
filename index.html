@@ -152,19 +152,12 @@ function idbDel(s,k){ return db().then(function(d){ return new Promise(function(
   t.oncomplete=function(){res(true)}; t.onerror=function(){res(false)}; }); }); }
 
 function lsSet(k,v){ try{ localStorage.setItem("pap:"+k,JSON.stringify(v)); }
-  catch(e){ toast("Mémoire pleine. Exportez puis retirez quelques photos."); } }
+  catch(e){ toast("Mémoire pleine. Exportez vos fiches puis contactez-moi."); } }
 function lsGet(k){ try{ var v=localStorage.getItem("pap:"+k); return v?JSON.parse(v):null; }catch(e){ return null; } }
 
 function save(k,v){ if(useIDB) return idbPut("kv",k,v).catch(function(){ lsSet(k,v); }); lsSet(k,v); return Promise.resolve(); }
 function load(k){ if(useIDB) return idbGet("kv",k).then(function(v){ return v===undefined?lsGet(k):v; })
   .catch(function(){ return lsGet(k); }); return Promise.resolve(lsGet(k)); }
-function savePhoto(id,d){ if(useIDB) return idbPut("photos",id,d).catch(function(){});
-  try{ localStorage.setItem("pph:"+id,d); }catch(e){} return Promise.resolve(); }
-function loadPhoto(id){ if(useIDB) return idbGet("photos",id).then(function(v){ return v||lsPh(id); })
-  .catch(function(){ return lsPh(id); }); return Promise.resolve(lsPh(id)); }
-function delPhoto(id){ try{ localStorage.removeItem("pph:"+id); }catch(e){}
-  if(useIDB) return idbDel("photos",id); return Promise.resolve(); }
-function lsPh(id){ try{ return localStorage.getItem("pph:"+id); }catch(e){ return null; } }
 
 /* =================================================================== */
 /*  État et utilitaires                                                */
@@ -190,6 +183,11 @@ function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){
   return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); }
 function hash(s){ var h=5381; for(var i=0;i<s.length;i++) h=((h<<5)+h+s.charCodeAt(i))|0; return String(h); }
 function itemDe(id){ for(var i=0;i<S.items.length;i++) if(S.items[i].id===id) return S.items[i]; return null; }
+function docsDe(it){
+  if(Array.isArray(it.docs)) return it.docs.filter(Boolean);
+  return it.doc ? [it.doc] : [];
+}
+function docsTxt(it){ return docsDe(it).join(", "); }
 function titre(it){ return [it.marque,it.modele].filter(Boolean).join(" ") || it.ref || "Sans titre"; }
 function lieuTxt(it){ return (it.lieu||"").trim(); }
 
@@ -208,26 +206,6 @@ function listeMarques(){
 function listeLieux(){
   var v={}; S.items.forEach(function(i){ var l=lieuTxt(i); if(l) v[l]=1; });
   return Object.keys(v).sort(function(a,b){ return a.localeCompare(b); });
-}
-
-function redimensionner(file,maxSide,q){
-  return new Promise(function(res,rej){
-    var fr=new FileReader();
-    fr.onerror=function(){ rej(new Error("Image illisible.")); };
-    fr.onload=function(){
-      var img=new Image();
-      img.onerror=function(){ rej(new Error("Image illisible.")); };
-      img.onload=function(){
-        var s=Math.min(1,maxSide/Math.max(img.width,img.height));
-        var w=Math.round(img.width*s), h=Math.round(img.height*s);
-        var c=document.createElement("canvas"); c.width=w; c.height=h;
-        var x=c.getContext("2d"); x.fillStyle="#fff"; x.fillRect(0,0,w,h); x.drawImage(img,0,0,w,h);
-        res(c.toDataURL("image/jpeg",q));
-      };
-      img.src=fr.result;
-    };
-    fr.readAsDataURL(file);
-  });
 }
 
 var ICONS={
@@ -280,7 +258,7 @@ function vueRegistre(){
   var liste=S.items.filter(function(i){
     if(S.marque!=="all" && (i.marque||"").trim()!==S.marque) return false;
     if(!q) return true;
-    return [i.marque,i.modele,i.ref,i.serie,i.doc,i.annee,i.lieu,i.notes]
+    return [i.marque,i.modele,i.ref,i.serie,docsTxt(i),i.annee,i.lieu,i.notes]
       .filter(Boolean).join(" ").toLowerCase().indexOf(q)>-1;
   });
   if(liste.length===0)
@@ -305,9 +283,8 @@ function vueRegistre(){
     h += '<div class="head2"><h2 class="grow">'+esc(k)+'</h2><span class="mono">'+arr.length+'</span></div>';
     arr.forEach(function(i){
       var nom  = mode==="marque" ? (i.modele || i.ref || i.marque) : titre(i);
-      var meta = mode==="marque" ? [i.doc, i.annee, lieuTxt(i)] : [i.doc||"Document", i.annee];
+      var meta = mode==="marque" ? [docsTxt(i), i.annee, lieuTxt(i)] : [docsTxt(i)||"Document", i.annee];
       h += '<button class="entry" data-id="'+i.id+'">'
-        + (i.vignette?'<img class="thumb" src="'+i.vignette+'" alt="">':'<span class="thumb">'+esc((i.marque||"?").slice(0,2))+'</span>')
         + '<span class="grow"><span class="ename" style="display:block">'+esc(nom)+'</span>'
         + '<span class="emeta" style="display:block">'+esc(meta.filter(Boolean).join(" · "))+'</span></span>'
         + (i.ref?'<span class="eref mono">'+esc(i.ref)+'</span>':'')
@@ -322,13 +299,12 @@ function vueResume(){
   var maxN=1; marques.forEach(function(x){ if(x.n>maxN) maxN=x.n; });
   var sansLieu=S.items.filter(function(i){ return !lieuTxt(i); }).length;
   var sansRef=S.items.filter(function(i){ return !(i.ref||"").trim(); }).length;
-  var avecPhoto=S.items.filter(function(i){ return !!i.vignette; }).length;
 
   var h='<div class="wrap pad" style="padding-top:20px">'
     + '<div class="card" style="padding:18px 20px"><span class="lbl">Documents enregistrés</span>'
     + '<div class="serif" style="font-size:30px;line-height:1.1">'+S.items.length+'</div>'
     + '<div class="note" style="margin-top:4px">'+marques.length+(marques.length>1?" marques":" marque")
-    + ' · '+lieux.length+(lieux.length>1?" lieux":" lieu")+' · '+avecPhoto+' avec photo</div></div>'
+    + ' · '+lieux.length+(lieux.length>1?" lieux":" lieu")+'</div></div>'
     + '<div class="head2"><h2 class="grow">Par marque</h2></div>';
   marques.forEach(function(x){
     h += '<div style="padding:12px 0;border-bottom:1px solid var(--line)"><div class="row">'
@@ -432,8 +408,8 @@ function dialogue(o){
 }
 
 function vierge(){
-  return {id:uid(),marque:"",modele:"",ref:"",serie:"",doc:"",annee:"",lieu:"",notes:"",
-    vignette:"",cree:new Date().toISOString()};
+  return {id:uid(),marque:"",modele:"",ref:"",serie:"",annee:"",lieu:"",notes:"",
+    docs:[],cree:new Date().toISOString()};
 }
 
 /* ---- Formulaire ---- */
@@ -456,9 +432,12 @@ function formulaire(it){
     + champ("Année",'<input id="f_annee" class="mono" inputmode="numeric" maxlength="4" value="'+esc(it.annee)+'">')
     + '</div>'
 
-    + champ("Type de document",
-        '<select id="f_doc"><option value="">À choisir</option>'
-        + DOCS.map(function(x){ return '<option'+(it.doc===x?" selected":"")+'>'+x+'</option>'; }).join("")+'</select>')
+    + champ("Documents présents",
+        '<div class="chips" id="docs" style="flex-wrap:wrap;overflow:visible">'
+        + DOCS.map(function(x){
+            return '<button type="button" class="chip'+(docsDe(it).indexOf(x)>-1?" on":"")+'" data-doc="'+esc(x)+'">'+esc(x)+'</button>';
+          }).join("")
+        + '</div><p class="note" style="margin-top:6px">Cochez-en autant que nécessaire : carte de garantie, facture, certificat d\'origine…</p>')
 
     + champ("Numéro de série",'<input id="f_serie" class="mono" value="'+esc(it.serie)+'">')
 
@@ -466,18 +445,6 @@ function formulaire(it){
         '<input id="f_lieu" list="lieux" value="'+esc(it.lieu)+'" placeholder="ex. Genève, coffre B-214">'
         + '<datalist id="lieux">'+lieux.map(function(l){ return '<option value="'+esc(l)+'">'; }).join("")+'</datalist>'
         + '<p class="note" style="margin-top:6px">Écrivez-le comme vous voulez. Les fiches sont regroupées sur ce texte exact, alors reprenez la même formulation d\'une fiche à l\'autre — la liste vous propose celles déjà utilisées.</p>')
-
-    + '<div class="field"><label class="lbl">Photo de la montre</label>'
-    + '<div class="row"><div class="thumb" id="apercu" style="width:74px;height:74px">'
-    + (it.vignette?'<img src="'+it.vignette+'" style="width:100%;height:100%;object-fit:cover;border-radius:3px">':'—')
-    + '</div><div class="grow">'
-    + '<button type="button" class="ghost" id="prendre">Prendre une photo</button> '
-    + '<button type="button" class="ghost" id="choisir">Choisir une image</button>'
-    + (it.vignette?' <button type="button" class="ghost danger" id="retirerPh">Retirer</button>':'')
-    + '</div></div>'
-    + '<p class="note" style="margin-top:6px">Pour voir d\'un coup d\'œil à quoi correspond la référence.</p>'
-    + '<input id="cam" type="file" accept="image/*" capture="environment" style="display:none">'
-    + '<input id="gal" type="file" accept="image/*" style="display:none"></div>'
 
     + champ("Notes",'<textarea id="f_notes" placeholder="ex. concessionnaire, état du document, tampon, boîte présente">'+esc(it.notes)+'</textarea>')
 
@@ -488,12 +455,19 @@ function formulaire(it){
     + '</div>';
 
   var d=ouvrir(h);
-  var photo=null, vignette=it.vignette, retire=false;
+  var docsSel = docsDe(it).slice();
+  d.querySelectorAll("[data-doc]").forEach(function(b){
+    b.onclick=function(){
+      var v=b.getAttribute("data-doc"), i=docsSel.indexOf(v);
+      if(i>-1){ docsSel.splice(i,1); b.classList.remove("on"); }
+      else { docsSel.push(v); b.classList.add("on"); }
+    };
+  });
 
   /* Les valeurs sont mémorisées au fur et à mesure de la saisie :
      l'enregistrement ne dépend plus d'une relecture du formulaire. */
   var CH=[["#f_marque","marque"],["#f_modele","modele"],["#f_ref","ref"],["#f_serie","serie"],
-          ["#f_doc","doc"],["#f_annee","annee"],["#f_lieu","lieu"],["#f_notes","notes"]];
+          ["#f_annee","annee"],["#f_lieu","lieu"],["#f_notes","notes"]];
   var br={};
   CH.forEach(function(p){
     br[p[1]] = it[p[1]] || "";
@@ -511,31 +485,13 @@ function formulaire(it){
     toast(msg);
   }
 
-  var cam=d.querySelector("#cam"), gal=d.querySelector("#gal");
-  d.querySelector("#prendre").onclick=function(){ cam.click(); };
-  d.querySelector("#choisir").onclick=function(){ gal.click(); };
-  var rp=d.querySelector("#retirerPh");
-  if(rp) rp.onclick=function(){
-    photo=null; vignette=""; retire=true;
-    d.querySelector("#apercu").textContent="—"; toast("Photo retirée à l'enregistrement.");
-  };
-  function recu(e){
-    var f=e.target.files && e.target.files[0]; e.target.value="";
-    if(!f) return;
-    Promise.all([redimensionner(f,1100,0.72),redimensionner(f,140,0.5)]).then(function(r){
-      photo=r[0]; vignette=r[1]; retire=false;
-      d.querySelector("#apercu").innerHTML='<img src="'+r[1]+'" style="width:100%;height:100%;object-fit:cover;border-radius:3px">';
-    }).catch(function(err){ toast(err.message); });
-  }
-  cam.onchange=recu; gal.onchange=recu;
-
   d.querySelector("#enreg").onclick=function(){
     try{
       CH.forEach(function(p){
         var e=d.querySelector(p[0]);
         if(e && e.value!=null && String(e.value).trim()!=="") br[p[1]]=e.value;
       });
-      var v={ id:it.id, cree:it.cree||new Date().toISOString(), vignette:vignette||"" };
+      var v={ id:it.id, cree:it.cree||new Date().toISOString(), docs:docsSel.slice() };
       CH.forEach(function(p){ v[p[1]]=String(br[p[1]]||"").trim(); });
 
       if(!v.marque && !v.modele && !v.ref){
@@ -546,9 +502,6 @@ function formulaire(it){
       if(idx>-1) S.items[idx]=v; else S.items.unshift(v);
 
       Promise.resolve(save("items",S.items)).then(function(){
-        if(photo) return savePhoto(v.id,photo);
-        if(retire) return delPhoto(v.id);
-      }).then(function(){
         d.remove(); render(); toast("Fiche enregistrée.");
       }).catch(function(e){
         erreur("Enregistrement impossible : "+((e&&e.message)||e));
@@ -564,7 +517,7 @@ function formulaire(it){
 function detail(it){
   if(!it) return;
   var h = tete("Document",'<button class="ghost" id="modif" style="padding:8px 12px">Modifier</button>')
-    + '<div class="wrap pad" style="padding-top:18px"><div id="grande"></div>'
+    + '<div class="wrap pad" style="padding-top:18px">'
     + '<div class="card"><div class="cardhead">'
     + '<div class="serif" style="font-size:22px;line-height:1.25">'+esc(titre(it))+'</div>'
     + (it.ref?'<div class="mono" style="font-size:13px;color:var(--steel);margin-top:5px">'+esc(it.ref)+'</div>':'')
@@ -574,7 +527,8 @@ function detail(it){
     return '<div class="fld"><span class="lbl">'+esc(l)+'</span><div class="fldv'+(mono?" mono":"")+'">'
       + (v?esc(v):'<span style="color:var(--mut)">—</span>')+'</div></div>';
   }
-  h += f("Type de document",it.doc);
+  h += '<div class="fld full"><span class="lbl">Documents présents</span><div class="fldv">'
+    + (docsDe(it).length?esc(docsTxt(it)):'<span style="color:var(--mut)">—</span>')+'</div></div>';
   h += f("Année",it.annee,true);
   h += f("Numéro de série",it.serie,true);
   h += f("Lieu",lieuTxt(it)||"Non indiqué");
@@ -583,20 +537,15 @@ function detail(it){
     + '<button class="ghost danger wide" id="suppr" style="margin-top:26px">Supprimer la fiche</button></div>';
 
   var d=ouvrir(h);
-  loadPhoto(it.id).then(function(p){
-    if(p) d.querySelector("#grande").innerHTML =
-      '<img src="'+p+'" style="width:100%;border-radius:5px;border:1px solid var(--line2);margin-bottom:16px;display:block">'
-      + '<p class="note" style="margin:-8px 0 16px">Photo de la montre correspondant à cette référence.</p>';
-  });
   d.querySelector("#modif").onclick=function(){ d.remove(); formulaire(it); };
   d.querySelector("#suppr").onclick=function(){
     dialogue({
       titre:"Supprimer cette fiche ?",
-      texte:"L'action est définitive et la photo associée sera effacée elle aussi.",
+      texte:"L'action est définitive.",
       ok:"Supprimer", danger:true,
       onOk:function(){
         S.items=S.items.filter(function(x){ return x.id!==it.id; });
-        Promise.resolve(save("items",S.items)).then(function(){ return delPhoto(it.id); })
+        Promise.resolve(save("items",S.items))
           .then(function(){ d.remove(); render(); toast("Fiche supprimée."); })
           .catch(function(e){ toast("Suppression impossible : "+((e&&e.message)||e)); });
       }
@@ -614,7 +563,7 @@ function reglages(){
     + (S.cfg.code?'<button class="ghost danger" id="offCode">Retirer le code</button>'
                  :'<button class="ghost" id="onCode">Définir un code</button>')
     + '<div class="head2"><h2 class="grow">Sauvegarde</h2></div>'
-    + '<p class="note" style="margin:12px 0">Tout est stocké sur cet appareil uniquement. Si le téléphone est perdu, seule votre sauvegarde subsiste. Les photos ne sont pas incluses dans l\'export.</p>'
+    + '<p class="note" style="margin:12px 0">Tout est stocké sur cet appareil uniquement. Si le téléphone est perdu, seule votre sauvegarde subsiste. L\'export JSON contient l\'intégralité de vos fiches.</p>'
     + '<div class="row" style="gap:10px;flex-wrap:wrap">'
     + '<button class="ghost" id="expJ">Exporter en JSON</button>'
     + '<button class="ghost" id="expC">Exporter en tableur</button></div>'
@@ -656,9 +605,9 @@ function reglages(){
 }
 
 function csv(){
-  var head=["Marque","Modèle","Référence","Numéro de série","Type de document","Année","Lieu","Notes"];
+  var head=["Marque","Modèle","Référence","Numéro de série","Documents présents","Année","Lieu","Notes"];
   var lignes=S.items.map(function(i){
-    return [i.marque,i.modele,i.ref,i.serie,i.doc,i.annee,i.lieu,(i.notes||"").replace(/\n/g," ")];
+    return [i.marque,i.modele,i.ref,i.serie,docsTxt(i),i.annee,i.lieu,(i.notes||"").replace(/\n/g," ")];
   });
   return "\uFEFF"+[head].concat(lignes).map(function(r){
     return r.map(function(c){ return '"'+String(c==null?"":c).replace(/"/g,'""')+'"'; }).join(";");
